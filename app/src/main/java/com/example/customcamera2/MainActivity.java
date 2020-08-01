@@ -48,8 +48,14 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -59,6 +65,8 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -75,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private SensorManager mSensorManager;
     private DeviceOrientation deviceOrientation;
     private StorageReference mStorageRef = FirebaseStorage.getInstance().getReference("Images");
+    private FirebaseFirestore mFireStoreRef = FirebaseFirestore.getInstance();
     int mDSI_height, mDSI_width;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
@@ -216,22 +225,47 @@ public class MainActivity extends AppCompatActivity {
             String format = s.format(new Date());
             String fileName = "image_" + format + ".jpg";
 
-            StorageReference riversRef = mStorageRef.child(fileName);
+            final StorageReference riversRef = mStorageRef.child(fileName);
             UploadTask uploadTask = riversRef.putBytes(bytes);
             uploadTask.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
                     // Handle unsuccessful uploads
-                    Log.d("TAG", "upload failure");
+                    Log.d("FIREBASE", "upload failure");
                 }
             }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                 @Override
                 public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                     // taskSnapshot.getMetadata() contains file metadata such as size, content-type, etc.
                     // ...
-                    Log.d("TAG", "upload success");
+                    riversRef.getDownloadUrl(); //업로드한 이미지의 url
+                    Log.d("FIREBASE", "upload success");
                 }
             });
+
+            HashMap<String, Object> city = new HashMap<>();
+            city.put("population", 156L);
+            city.put("color", "blue");
+
+            WriteBatch batch = mFireStoreRef.batch();
+
+            // Set the value of 'NYC'
+            DocumentReference nycRef = mFireStoreRef.collection("cities").document("NYC");
+            batch.update(nycRef, "color", FieldValue.arrayUnion("yellow"));
+
+            // Update the population of 'SF'
+            DocumentReference sfRef = mFireStoreRef.collection("cities").document("SF");
+            batch.update(sfRef, "color", FieldValue.arrayUnion("yellow"));
+
+            // Commit the batch
+            batch.commit().addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    // ...
+                    Log.d("FIREBASE", "upload end");
+                }
+            });
+
 
 //            final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
 //            new SaveImageTask().execute(bitmap);
